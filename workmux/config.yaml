@@ -1,0 +1,11 @@
+nerdfont: true
+
+base_branch: master
+
+panes:
+  - command: mise run setup && nv
+    focus: true
+
+  - command: opencode
+    split: horizontal
+theme: teal-drift
