@@ -1,11 +1,10 @@
 nerdfont: true
-
 base_branch: master
 
 panes:
-  - command: mise run setup && nv
-    focus: true
+  - command: nvim
 
-  - command: opencode
+  - command: mise run setup && opencode
     split: horizontal
+    focus: true
 theme: teal-drift
