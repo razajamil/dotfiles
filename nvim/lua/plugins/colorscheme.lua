@@ -1,14 +1,12 @@
 return {
   {
-    "sainnhe/sonokai",
-    config = function()
-      vim.g.sonokai_style = "maia"
-    end,
+    "oskarnurm/koda.nvim",
+    priority = 1000,
   },
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = "sonokai",
+      colorscheme = "koda-glade",
     },
   },
 }

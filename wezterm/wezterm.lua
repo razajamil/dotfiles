@@ -1,5 +1,4 @@
 local os = require("os")
--- local util = require("util")
 local wezterm = require("wezterm")
 local session_manager = require("wezterm-session-manager/session-manager")
 local act = wezterm.action
@@ -77,7 +76,7 @@ local move_around = function(window, pane, direction_wez, direction_nvim)
 			.. pane:pane_id()
 			.. " "
 			.. wezterm.home_dir
-			.. "/.local/bin/wezterm.nvim.navigator"
+			.. "/go/bin/wezterm.nvim.navigator"
 			.. " "
 			.. direction_nvim
 	)
@@ -110,14 +109,14 @@ local vim_resize = function(window, pane, direction_wez, direction_nvim)
 			.. pane:pane_id()
 			.. " "
 			.. wezterm.home_dir
-			.. "/.local/bin/wezterm.nvim.navigator"
+			.. "/go/bin/wezterm.nvim.navigator"
 			.. " "
 			.. direction_nvim
 	)
 	if result then
 		window:perform_action(act({ SendString = "\x1b" .. direction_nvim }), pane)
 	else
-		window:perform_action(act({ ActivatePaneDirection = direction_wez }), pane)
+		window:perform_action(act({ AdjustPaneSize = { direction_wez, 3 } }), pane)
 	end
 end
 
@@ -152,9 +151,7 @@ end
 
 config.adjust_window_size_when_changing_font_size = false
 config.automatically_reload_config = true
-config.color_scheme = "Solarized (dark) (terminal.sexy)"
-config.enable_scroll_bar = true
--- config.enable_wayland = true
+config.enable_scroll_bar = false
 -- The leader is similar to how tmux defines a set of keys to hit in order to
 -- invoke tmux bindings. Binding to ctrl-a here to mimic tmux
 config.leader = { key = "b", mods = "CTRL", timeout_milliseconds = 2000 }
@@ -166,55 +163,87 @@ config.mouse_bindings = {
 		action = act.OpenLinkAtMouseCursor,
 	},
 }
-config.pane_focus_follows_mouse = true
+-- config.pane_focus_follows_mouse = true
 config.scrollback_lines = 5000
 config.use_dead_keys = false
 config.warn_about_missing_glyphs = false
-config.window_decorations = "TITLE | RESIZE"
-config.window_padding = {
-	left = 0,
-	right = 0,
-	top = 0,
-	bottom = 0,
-}
 
 -- Appearence
-config.font = wezterm.font("Hack Nerd Font", { weight = "Bold" })
-config.font_size = 16
-config.line_height = 1.4
+config.font = wezterm.font("JetBrainsMono Nerd Font", { weight = "Regular" })
+config.font_size = 14
+config.line_height = 1.2
 
-config.colors = {
-	foreground = "#CBE0F0",
-	background = "#011423",
-	cursor_bg = "#47FF9C",
-	cursor_border = "#47FF9C",
-	cursor_fg = "#011423",
-	selection_bg = "#033259",
-	selection_fg = "#CBE0F0",
-	ansi = { "#214969", "#E52E2E", "#44FFB1", "#FFE073", "#0FC5ED", "#a277ff", "#24EAF7", "#24EAF7" },
-	brights = { "#214969", "#E52E2E", "#44FFB1", "#FFE073", "#A277FF", "#a277ff", "#24EAF7", "#24EAF7" },
+local koda_base_theme = {
+	background = "#faf9f5",
+	foreground = "#101010",
+
+	cursor_bg = "#6a6a6a",
+	cursor_fg = "#ffffff",
+
+	selection_bg = "#ebebeb",
+	selection_fg = "#101010",
+
+	split = "#ebebeb",
+	compose_cursor = "#b07700",
+	scrollbar_thumb = "#101010",
+
+	ansi = {
+		"#ebebeb",
+		"#ca0043",
+		"#407f00",
+		"#926200",
+		"#3d3d3d",
+		"#a200d1",
+		"#007d7d",
+		"#6a6a6a",
+	},
+
+	brights = {
+		"#969ba5",
+		"#f30052",
+		"#4f9a00",
+		"#b07700",
+		"#000000",
+		"#c301fb",
+		"#009797",
+		"#101010",
+	},
+
 	tab_bar = {
-		inactive_tab_edge = "#011423",
-		background = "#011423",
+		inactive_tab_edge = "#ebebeb",
+		background = "#ebebeb",
+
 		active_tab = {
-			bg_color = "#011423",
-			fg_color = "#CBE0F0",
+			bg_color = "#101010",
+			fg_color = "#faf9f5",
 		},
+
 		inactive_tab = {
-			bg_color = "#011423",
-			fg_color = "#214969",
+			fg_color = "#969ba5",
+			bg_color = "#ebebeb",
 		},
+
 		inactive_tab_hover = {
-			bg_color = "#011423",
-			fg_color = "#CBE0F0",
+			fg_color = "#faf9f5",
+			bg_color = "#101010",
+		},
+
+		new_tab = {
+			fg_color = "#3d3d3d",
+			bg_color = "#ebebeb",
+		},
+
+		new_tab_hover = {
+			fg_color = "#faf9f5",
+			bg_color = "#101010",
+			intensity = "Bold",
 		},
 	},
-	split = "#CBE0F0",
 }
 
+config.colors = koda_base_theme
+
 config.window_decorations = "RESIZE"
-config.window_background_opacity = 0.93
-config.macos_window_background_blur = 10
 
 -- Tab bar
 config.use_fancy_tab_bar = true
@@ -222,15 +251,29 @@ config.show_close_tab_button_in_tabs = false
 config.show_new_tab_button_in_tab_bar = false
 config.switch_to_last_active_tab_when_closing_tab = true
 config.window_frame = {
-	font = wezterm.font("Hack Nerd Font", { weight = "Regular" }),
-	font_size = 12.0,
-	active_titlebar_bg = "#011423",
-	inactive_titlebar_bg = "#011423",
+	font = wezterm.font("JetBrainsMono Nerd Font", { weight = "Bold" }),
+	font_size = 10,
+	active_titlebar_bg = "#FFF",
+	inactive_titlebar_bg = "#FFF",
+	border_left_width = "0px",
+	border_right_width = "0px",
+	border_top_height = "0px",
+	border_bottom_height = "0px",
+	border_left_color = "#000000",
+	border_right_color = "#000000",
+	border_top_color = "#000000",
+	border_bottom_color = "#000000",
+}
+config.window_padding = {
+	left = 0,
+	right = 0,
+	top = 0,
+	bottom = 0,
 }
 
 config.inactive_pane_hsb = {
 	saturation = 0.7,
-	brightness = 0.3,
+	brightness = 0.35,
 }
 
 -- Setup muxing by default
@@ -251,7 +294,6 @@ config.keys = {
 	--     mods = 'ALT',
 	--     action = act.DisableDefaultAssignment,
 	-- },
-
 	-- Copy mode
 	{
 		key = "[",
@@ -451,6 +493,18 @@ config.keys = {
 				end
 			end),
 		}),
+	},
+
+	-- Switch to specific workspaces
+	{
+		key = "1",
+		mods = "LEADER",
+		action = act.SwitchToWorkspace({ name = "core" }),
+	},
+	{
+		key = "0",
+		mods = "LEADER",
+		action = act.SwitchToWorkspace({ name = "dotfiles" }),
 	},
 
 	-- Session manager bindings
