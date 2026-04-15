@@ -5,19 +5,19 @@ return {
       local base_on_attach = vim.lsp.config.eslint.on_attach
 
       opts.inlay_hints = { enabled = false }
-      opts.codelens = { enabled = true }
+      opts.codelens = { enabled = false }
       opts.servers = opts.servers or {}
       opts.servers.vtsls = vim.tbl_deep_extend("force", opts.servers.vtsls or {}, {
         settings = {
           javascript = {
             referencesCodeLens = {
-              enabled = true,
+              enabled = false,
               showOnAllFunctions = true,
             },
           },
           typescript = {
             referencesCodeLens = {
-              enabled = true,
+              enabled = false,
               showOnAllFunctions = true,
             },
           },
