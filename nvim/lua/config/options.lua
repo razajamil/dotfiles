@@ -3,3 +3,5 @@
 -- Add any additional options here
 -- test
 -- vim.lsp.set_log_level("debug")
+
+vim.opt.showtabline = 2

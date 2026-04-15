@@ -84,6 +84,11 @@ vim.api.nvim_create_autocmd({ "ColorScheme", "FileType" }, {
 
     vim.api.nvim_set_hl(0, "LspCodeLens", { fg = custom_light_grey })
     vim.api.nvim_set_hl(0, "LspCodeLensSeparator", { fg = custom_light_grey })
+    vim.api.nvim_set_hl(0, "NoiceLspProgressSpinner", { fg = custom_light_grey })
+    vim.api.nvim_set_hl(0, "NoiceLspProgressTitle", { fg = custom_light_grey })
+    vim.api.nvim_set_hl(0, "NoiceLspProgressClient", { fg = custom_light_grey })
+    vim.api.nvim_set_hl(0, "NoiceFormatProgressTodo", { fg = custom_light_grey })
+    vim.api.nvim_set_hl(0, "NoiceFormatProgressDone", { fg = custom_light_grey })
 
     local flash_overrides = {
       groups = {
