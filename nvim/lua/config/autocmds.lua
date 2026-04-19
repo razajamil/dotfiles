@@ -33,30 +33,31 @@ vim.api.nvim_create_autocmd({ "ColorScheme", "FileType" }, {
       vim.api.nvim_set_hl(0, group, { italic = true, fg = koda_green, bold = true })
     end
 
-    -- Color if/else, for/while, and return statements
+    -- Color statement-like keywords red, with an explicit override for return
     local keyword_overrides = {
       groups = {
-        "@keyword.conditional",
-        "@keyword.repeat",
+        "@keyword",
         "@keyword.return",
+        "Keyword",
+        "Statement",
         "Conditional",
         "Repeat",
+        "Exception",
       },
     }
     for _, group in ipairs(keyword_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = koda_red })
+      vim.api.nvim_set_hl(0, group, { fg = koda_red, bold = true })
     end
 
-    -- Color import/export keywords
+    -- Make TypeScript import/export keywords use the dim color at normal weight
     local import_overrides = {
       groups = {
-        "@keyword.import",
-        "@keyword.export",
-        "Include",
+        "@keyword.import.typescript",
+        "@keyword.import.tsx",
       },
     }
     for _, group in ipairs(import_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = koda_dim })
+      vim.api.nvim_set_hl(0, group, { fg = custom_light_grey })
     end
 
     -- Color 'type' keyword in type imports (e.g. import type { Foo } from ...)
@@ -72,23 +73,23 @@ vim.api.nvim_create_autocmd({ "ColorScheme", "FileType" }, {
     end
 
     -- Color hidden/ignored files in Snacks explorer
-    local explorer_dim_overrides = {
-      groups = {
-        "SnacksPickerPathHidden",
-        "SnacksPickerPathIgnored",
-      },
-    }
-    for _, group in ipairs(explorer_dim_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = custom_light_grey })
-    end
-
-    vim.api.nvim_set_hl(0, "LspCodeLens", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "LspCodeLensSeparator", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "NoiceLspProgressSpinner", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "NoiceLspProgressTitle", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "NoiceLspProgressClient", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "NoiceFormatProgressTodo", { fg = custom_light_grey })
-    vim.api.nvim_set_hl(0, "NoiceFormatProgressDone", { fg = custom_light_grey })
+    -- local explorer_dim_overrides = {
+    --   groups = {
+    --     "SnacksPickerPathHidden",
+    --     "SnacksPickerPathIgnored",
+    --   },
+    -- }
+    -- for _, group in ipairs(explorer_dim_overrides.groups) do
+    --   vim.api.nvim_set_hl(0, group, { fg = custom_light_grey })
+    -- end
+    --
+    -- vim.api.nvim_set_hl(0, "LspCodeLens", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "LspCodeLensSeparator", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "NoiceLspProgressSpinner", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "NoiceLspProgressTitle", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "NoiceLspProgressClient", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "NoiceFormatProgressTodo", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "NoiceFormatProgressDone", { fg = custom_light_grey })
 
     local flash_overrides = {
       groups = {
@@ -112,6 +113,6 @@ vim.api.nvim_create_autocmd({ "ColorScheme", "FileType" }, {
       vim.api.nvim_set_hl(0, group, { bg = "#000000", fg = "#ffffff", bold = true })
     end
 
-    vim.api.nvim_set_hl(0, "SnacksPickerGitStatusUntracked", { fg = custom_light_grey })
+    -- vim.api.nvim_set_hl(0, "SnacksPickerGitStatusUntracked", { fg = custom_light_grey })
   end,
 })
