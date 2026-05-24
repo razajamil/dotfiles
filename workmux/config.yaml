@@ -1,5 +1,4 @@
 nerdfont: true
-base_branch: master
 
 panes:
   - command: nvim

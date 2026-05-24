@@ -24,6 +24,9 @@ return {
         },
       })
       opts.servers.eslint = vim.tbl_deep_extend("force", opts.servers.eslint or {}, {
+        cmd_env = {
+          ESLINT_USE_FLAT_CONFIG = "false",
+        },
         settings = {
           workingDirectories = { mode = "auto" },
           codeActionOnSave = {
