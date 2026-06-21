@@ -1334,7 +1334,8 @@ initial_window_height 400
 #: Foreground color for the active window title bar. Defaults to the
 #: corresponding tab bar color (active_tab_foreground) when set to
 #: none.
-# window_title_bar_active_background #1E90FF
+
+window_title_bar_active_background #1E90FF
 
 #: Background color for the active window title bar. Defaults to the
 #: corresponding tab bar color (active_tab_background) when set to
@@ -3145,15 +3146,15 @@ map kitty_mod+f7 focus_visible_window
 editor nvim
 
 # BEGIN_KITTY_THEME
-# Atom One Light
+# Selenized White
 include current-theme.conf
 # END_KITTY_THEME
 
 # BEGIN_KITTY_CURSOR
 shell_integration no-cursor
 cursor_shape block
-# cursor_text_color #FFFFFF
-# cursor #545454
+cursor_text_color #FFFFFF
+cursor #545454
 cursor_blink_interval 0
 # END_KITTY_CURSOR
 
@@ -3162,8 +3163,8 @@ hide_window_decorations titlebar-only
 window_border_width 1
 window_margin_width 1
 window_padding_width 0
-# active_border_color #1E90FF
-# inactive_border_color #ebebeb
+active_border_color #1E90FF
+inactive_border_color #ebebeb
 inactive_text_alpha 0.7
 placement_strategy top
 # END_KITTY_WINDOW
@@ -3178,7 +3179,7 @@ tab_bar_align center
 tab_separator ""
 tab_title_template " {fmt.fg._545454} {custom}{bell_symbol}{activity_symbol} "
 active_tab_title_template "{fmt.bg._1E90FF}{fmt.fg._ffffff} {custom}{bell_symbol}{activity_symbol} "
-# tab_bar_background #FFFFFF
+tab_bar_background #FFFFFF
 # old left/right for tabs   
 # END_KITTY_TAB_BAR
 

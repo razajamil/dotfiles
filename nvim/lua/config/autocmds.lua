@@ -7,96 +7,13 @@
 -- Or remove existing autocmds by their group name (which is prefixed with `lazyvim_` for the defaults)
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
 --
-vim.api.nvim_create_autocmd({ "ColorScheme", "FileType" }, {
-  pattern = { "*", "javascriptreact", "typescriptreact" },
-  callback = function()
-    local koda_green = "#448c27"
-    local koda_red = "#aa3731"
-    local koda_dim = "#e7e7e7"
-    local koda_type = "#708b8d"
 
-    local custom_light_grey = "#bebbbb"
-
-    -- Make strings italic
-    local italic_overrides = {
-      groups = {
-        "@string",
-        "@string.jsx",
-        "@string.tsx",
-        "@string.typescript",
-        "@string.javascript",
-        "String",
-        "stringLiteral",
-      },
-    }
-    for _, group in ipairs(italic_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { italic = true, fg = koda_green, bold = true })
-    end
-
-    -- Color statement-like keywords red, with an explicit override for return
-    local keyword_overrides = {
-      groups = {
-        "@keyword",
-        "@keyword.return",
-        "Keyword",
-        "Statement",
-        "Conditional",
-        "Repeat",
-        "Exception",
-      },
-    }
-    for _, group in ipairs(keyword_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = koda_red, bold = true })
-    end
-
-    -- Make TypeScript import/export keywords use the dim color at normal weight
-    local import_overrides = {
-      groups = {
-        "@keyword.import.typescript",
-        "@keyword.import.tsx",
-      },
-    }
-    for _, group in ipairs(import_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = custom_light_grey })
-    end
-
-    -- Color 'type' keyword in type imports (e.g. import type { Foo } from ...)
-    local type_qualifier_overrides = {
-      groups = {
-        "@type.qualifier",
-        "@type.qualifier.typescript",
-        "@type.qualifier.tsx",
-      },
-    }
-    for _, group in ipairs(type_qualifier_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { fg = koda_type })
-    end
-
-    local flash_overrides = {
-      groups = {
-        "FlashLabel",
-        "FlashCurrent",
-      },
-    }
-    for _, group in ipairs(flash_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { bg = koda_red, fg = "#ffffff", bold = true })
-    end
-    vim.api.nvim_set_hl(0, "FlashMatch", { bg = "#000000", fg = "#ffffff", bold = true })
-
-    local search_overrides = {
-      groups = {
-        "Search",
-        "CurSearch",
-        "IncSearch",
-      },
-    }
-    for _, group in ipairs(search_overrides.groups) do
-      vim.api.nvim_set_hl(0, group, { bg = "#000000", fg = "#ffffff", bold = true })
-    end
-
-    vim.api.nvim_set_hl(0, "SnacksPickerPathHidden", { fg = "#8a8585" })
-    vim.api.nvim_set_hl(0, "SnacksPickerPathIgnored", { fg = "#8a8585" })
-
-    -- vim.api.nvim_set_hl(0, "SnacksPickerGitStatusUntracked", { fg = custom_light_grey })
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "markdown", "markdown.mdx" },
+  callback = function(args)
+    pcall(vim.treesitter.stop, args.buf)
+    vim.bo[args.buf].syntax = "off"
+    vim.opt_local.conceallevel = 0
+    vim.opt_local.concealcursor = ""
   end,
 })
