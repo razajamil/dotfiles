@@ -4,7 +4,20 @@ return {
     gh = {},
     picker = {
       sources = {
-        explorer = { hidden = true, ignored = true },
+        explorer = {
+          hidden = true,
+          ignored = true,
+          -- `o` (built-in) opens folders in Finder & files in their default app.
+          -- `O` reveals/selects the item in macOS Finder (`open -R`).
+          actions = {
+            finder_reveal = function(_, item)
+              if item then
+                vim.ui.open(item.file, { cmd = { "open", "-R" } })
+              end
+            end,
+          },
+          win = { list = { keys = { ["O"] = "finder_reveal" } } },
+        },
       },
     },
   },
