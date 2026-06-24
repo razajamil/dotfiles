@@ -131,10 +131,20 @@ return {
     -- No need to lazy-load with lazy.nvim.
     -- This plugin initializes itself lazily.
     lazy = false,
-    lazy_sync = false,
-    max_threads = 8,
-    git = {
-      status_text_color = true,
+    -- NOTE: these must live under `opts` so lazy.nvim actually calls
+    -- `require("fff").setup(opts)` (which sets `vim.g.fff`). As bare spec keys
+    -- they were silently ignored, leaving `vim.g.fff` nil. That made
+    -- plugin/fff.lua treat `lazy_sync` as nil and eagerly open the frecency
+    -- LMDB at every UIEnter — so each of N concurrent nvim sessions grabbed
+    -- reader slots from the shared 126-slot table and eventually triggered
+    -- `MDB_READERS_FULL`. `lazy_sync = true` defers DB/index init until the
+    -- first picker use, so idle sessions never touch the DB.
+    opts = {
+      lazy_sync = true,
+      max_threads = 8,
+      git = {
+        status_text_color = true,
+      },
     },
     keys = {
       {

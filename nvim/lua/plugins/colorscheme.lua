@@ -1,16 +1,17 @@
 -- Colorscheme configuration.
 --
--- Active: "lighter" — pulled from github.com/razajamil/lighter.
--- Update with :Lazy update. For local development, uncomment the `dir` below.
+-- Active: "lighter" — LOCAL checkout at ~/dev/lighter (for development).
+-- Edit lua/lighter/palette.lua there, then :LighterReload to see changes.
+-- For the published theme, use "razajamil/lighter" instead of dir (see below).
 
 return {
-  -- "lighter" theme — installed from GitHub.
+  -- "lighter" theme — LOCAL checkout for development.
   {
-    "razajamil/lighter",
+    dir = "/Users/raza.jamil/dev/lighter",
+    name = "lighter",
     lazy = false,
     priority = 1000,
-    -- version = "v0.1.0",                    -- pin a release instead of tracking main
-    -- dir = "/Users/raza.jamil/dev/lighter", -- use a local checkout for development
+    -- Published instead: replace the two lines above with  "razajamil/lighter"
     -- config = function()                    -- override colors at load time:
     --   require("lighter").setup({ colors = { line = "#bebbbb" } })
     -- end,
