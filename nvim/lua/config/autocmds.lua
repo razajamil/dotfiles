@@ -12,8 +12,8 @@ vim.api.nvim_create_autocmd("FileType", {
   pattern = { "markdown", "markdown.mdx" },
   callback = function(args)
     pcall(vim.treesitter.stop, args.buf)
-    vim.bo[args.buf].syntax = "off"
-    vim.opt_local.conceallevel = 0
-    vim.opt_local.concealcursor = ""
+    -- vim.bo[args.buf].syntax = "off"
+    vim.opt_local.conceallevel = 1
+    -- vim.opt_local.concealcursor = ""
   end,
 })

@@ -7,7 +7,7 @@
 return {
   -- "lighter" theme — LOCAL checkout for development.
   {
-    dir = "/Users/raza.jamil/dev/lighter",
+    dir = "/Users/raza.jamil/dev/raza/lighter",
     name = "lighter",
     lazy = false,
     priority = 1000,
