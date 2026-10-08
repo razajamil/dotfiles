@@ -1,8 +1,20 @@
 local function open_buffers_with_fff()
+  if require("fff.picker_ui.picker_ui").state.active then
+    return
+  end
+
+  -- fff bug (c188e7a): a content-index build that is still running when the
+  -- index moves to another directory installs its stale index into the new
+  -- one, so the buffer grep would find nothing. Only switch when it is done.
+  local has_picker, progress = pcall(require("fff.fuzzy").get_scan_progress)
+  if has_picker and not progress.is_index_ready then
+    vim.notify("FFF is still indexing the project. Try again in a few seconds.", vim.log.levels.INFO)
+    return
+  end
+
   local cwd = vim.uv.cwd()
   local tmp_root = vim.fn.stdpath("cache") .. "/fff-open-buffers"
   local path_map = {}
-  local seen_paths = {}
 
   local function to_picker_path(path)
     if vim.startswith(path, cwd .. "/") then
@@ -19,14 +31,12 @@ local function open_buffers_with_fff()
     if vim.bo[bufnr].buflisted and vim.bo[bufnr].buftype == "" then
       local path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
       local stat = path ~= "" and vim.uv.fs_stat(path) or nil
+      local picker_path = to_picker_path(path)
 
-      if stat and stat.type == "file" and not seen_paths[path] then
-        seen_paths[path] = true
-
-        local picker_path = tmp_root .. "/" .. to_picker_path(path)
-        local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-        vim.fn.mkdir(vim.fn.fnamemodify(picker_path, ":h"), "p")
-        vim.fn.writefile(lines, picker_path)
+      if stat and stat.type == "file" and not path_map[picker_path] then
+        local copy_path = tmp_root .. "/" .. picker_path
+        vim.fn.mkdir(vim.fn.fnamemodify(copy_path, ":h"), "p")
+        vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), copy_path)
         path_map[picker_path] = path
       end
     end
@@ -38,78 +48,88 @@ local function open_buffers_with_fff()
     return
   end
 
-  local picker_ui = require("fff.picker_ui")
-  local file_renderer = require("fff.file_renderer")
-  local grep_renderer = require("fff.grep.grep_renderer")
-  local original_select = picker_ui.select
-  local original_close = picker_ui.close
-  local original_update_results_sync = picker_ui.update_results_sync
-  local restored = false
+  -- fff skips hidden paths (.agents/, .github/) and node_modules outside a git
+  -- repo, and colours uncommitted files, so the copies go into a committed repo.
+  local function git(...)
+    local cmd = { "git", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false" }
+    vim.list_extend(cmd, { "-c", "user.name=fff", "-c", "user.email=fff@localhost", ... })
+    vim.system(cmd, { cwd = tmp_root }):wait()
+  end
 
-  local function restore()
-    if restored then
-      return
+  git("init", "-q")
+  git("add", "-A")
+  git("commit", "-q", "-m", "open buffers")
+
+  local fff = require("fff")
+  local picker_ui = require("fff.picker_ui.picker_ui")
+  local search_manager = require("fff.picker_ui.search_manager")
+  local file_renderer = require("fff.picker_ui.file_renderer")
+  local grep_renderer = require("fff.picker_ui.grep_renderer")
+  local original_update_results_sync = search_manager.update_results_sync
+
+  -- An empty query lists the open buffers; any text greps their contents.
+  local function update_results_sync(...)
+    local state = picker_ui.state
+    if state.query == "" then
+      state.mode = nil
+      state.renderer = file_renderer
+    else
+      state.mode = "grep"
+      state.renderer = grep_renderer
     end
 
-    restored = true
-    picker_ui.select = original_select
-    picker_ui.close = original_close
+    state.last_status_info = nil
+    return original_update_results_sync(...)
+  end
+
+  local function restore()
+    search_manager.update_results_sync = original_update_results_sync
     picker_ui.update_results_sync = original_update_results_sync
+    -- Point the shared fff index back at the project now, so the next `ff`
+    -- does not have to start a full re-index when it opens.
+    fff.change_indexing_directory(cwd)
     vim.schedule(function()
       vim.fn.delete(tmp_root, "rf")
     end)
   end
 
-  picker_ui.update_results_sync = function(...)
-    if picker_ui.state.query == "" then
-      picker_ui.state.mode = nil
-      picker_ui.state.renderer = file_renderer
-    else
-      picker_ui.state.mode = "grep"
-      picker_ui.state.renderer = grep_renderer
+  local function open_real_file(item, ctx)
+    local path = path_map[item.relative_path]
+    if not path then
+      return
     end
 
-    picker_ui.state.last_status_info = nil
-    return original_update_results_sync(...)
+    local win = require("fff.conf").get().select.select_window(vim.api.nvim_get_current_buf(), ctx.action)
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_set_current_win(win)
+    end
+
+    local open_cmd = ({ split = "split", vsplit = "vsplit", tab = "tabedit" })[ctx.action] or "edit"
+    vim.cmd(open_cmd .. " " .. vim.fn.fnameescape(vim.fn.fnamemodify(path, ":.")))
+    if ctx.location then
+      require("fff.location_utils").jump_to_location(ctx.location)
+    end
   end
 
-  picker_ui.select = function(action)
-    local item = picker_ui.state.filtered_items[picker_ui.state.cursor]
-    if item and path_map[item.path] then
-      item.path = path_map[item.path]
-    end
+  search_manager.update_results_sync = update_results_sync
+  picker_ui.update_results_sync = update_results_sync
 
-    local ok, result = pcall(original_select, action)
-    if not ok then
-      restore()
-      error(result)
-    end
+  local ok, err = pcall(fff.live_grep, {
+    cwd = tmp_root,
+    title = "Open Buffer Contents",
+    on_submit = open_real_file,
+  })
 
-    return result
-  end
-
-  picker_ui.close = function(...)
-    local ok, result = pcall(original_close, ...)
+  local input_buf = picker_ui.state.input_buf
+  if not ok or not picker_ui.state.active or not input_buf then
     restore()
-
     if not ok then
-      error(result)
+      vim.notify("Failed to open FFF buffers picker: " .. tostring(err), vim.log.levels.ERROR)
     end
-
-    return result
+    return
   end
 
-  local ok, err = pcall(function()
-    require("fff").live_grep({
-      cwd = tmp_root,
-      title = "Open Buffer Contents",
-    })
-  end)
-
-  if not ok then
-    restore()
-    vim.notify("Failed to open FFF buffers picker: " .. err, vim.log.levels.ERROR)
-  end
+  vim.api.nvim_create_autocmd("BufWipeout", { buffer = input_buf, once = true, callback = restore })
 end
 
 return {
@@ -131,19 +151,48 @@ return {
     -- No need to lazy-load with lazy.nvim.
     -- This plugin initializes itself lazily.
     lazy = false,
+    -- A full index of the monorepo costs ~4.5s CPU and up to ~200MB per session,
+    -- so only project sessions (`nvim` or `nvim <dir>`) build it at startup; a
+    -- git commit editor or a one-file edit does not. Then the first `ff`/`fg`
+    -- does not wait for the walk and the content index.
+    init = function()
+      vim.api.nvim_create_autocmd("UIEnter", {
+        once = true,
+        callback = function()
+          if vim.fn.argc() == 0 or vim.fn.isdirectory(vim.fn.argv(0)) == 1 then
+            vim.defer_fn(function()
+              require("fff.core").ensure_initialized()
+            end, 200)
+          end
+        end,
+      })
+    end,
     -- NOTE: these must live under `opts` so lazy.nvim actually calls
     -- `require("fff").setup(opts)` (which sets `vim.g.fff`). As bare spec keys
-    -- they were silently ignored, leaving `vim.g.fff` nil. That made
-    -- plugin/fff.lua treat `lazy_sync` as nil and eagerly open the frecency
-    -- LMDB at every UIEnter — so each of N concurrent nvim sessions grabbed
-    -- reader slots from the shared 126-slot table and eventually triggered
-    -- `MDB_READERS_FULL`. `lazy_sync = true` defers DB/index init until the
-    -- first picker use, so idle sessions never touch the DB.
+    -- they were silently ignored, leaving `vim.g.fff` nil. `lazy_sync = true`
+    -- stops plugin/fff.lua from indexing in every session at UIEnter; `init`
+    -- above starts it only for project sessions. (This setting first fixed
+    -- `MDB_READERS_FULL` across concurrent sessions; fff fixed that upstream in
+    -- #775 and #785.)
     opts = {
       lazy_sync = true,
       max_threads = 8,
+      -- Default is `info`, which writes a record per keystroke while the picker
+      -- is open and keeps 20 session log files. That was ~30MB of churn on disk
+      -- for no benefit outside debugging.
+      logging = {
+        log_level = "warn",
+        retain_runs = 3,
+      },
       git = {
         status_text_color = true,
+      },
+      -- Microsoft Defender scans every file open that it has not seen before
+      -- (~8ms each), so in a new worktree or after a pull the content index
+      -- takes 40s+ to build. Until it is ready, grep reads files on the UI
+      -- thread, and without this a query with no match reads every file.
+      grep = {
+        enforce_time_budget = true,
       },
     },
     keys = {
@@ -166,7 +215,7 @@ return {
         function()
           require("fff").live_grep({
             grep = {
-              modes = { "plain", "fuzzy" },
+              modes = { "plain", "regex", "fuzzy" },
               smart_case = true,
             },
           })
