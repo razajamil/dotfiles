@@ -1,17 +1,14 @@
 -- Colorscheme configuration.
 --
--- Active: "lighter" — LOCAL checkout at ~/dev/lighter (for development).
--- Edit lua/lighter/palette.lua there, then :LighterReload to see changes.
--- For the published theme, use "razajamil/lighter" instead of dir (see below).
+-- Active: "lighter", the published theme from github.com/razajamil/lighter, so it installs the same
+-- way on every machine (this one and the dev boxes).
 
 return {
-  -- "lighter" theme — LOCAL checkout for development.
   {
-    dir = "/Users/raza.jamil/dev/raza/lighter",
+    "razajamil/lighter",
     name = "lighter",
     lazy = false,
     priority = 1000,
-    -- Published instead: replace the two lines above with  "razajamil/lighter"
     -- config = function()                    -- override colors at load time:
     --   require("lighter").setup({ colors = { line = "#bebbbb" } })
     -- end,
