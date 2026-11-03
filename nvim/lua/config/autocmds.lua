@@ -8,6 +8,8 @@
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
 --
 
+-- Neovim 0.12's runtime ftplugin/markdown.lua calls vim.treesitter.start(), so
+-- stop it here. LazyVim's restart is blocked in lua/plugins/treesitter.lua.
 vim.api.nvim_create_autocmd("FileType", {
   pattern = { "markdown", "markdown.mdx" },
   callback = function(args)

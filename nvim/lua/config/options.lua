@@ -1,8 +1,6 @@
 -- Options are automatically loaded before lazy.nvim startup
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
--- test
--- vim.lsp.set_log_level("debug")
 
 vim.opt.showtabline = 2
 
@@ -17,10 +15,12 @@ vim.opt.swapfile = false
 -- reached 366MB / ~1M records; Neovim only warns past 1GB, so nothing flagged
 -- it. To debug a server: `:lua vim.lsp.log.set_level("warn")`, reproduce, then
 -- `:LspLog` — and set it back to OFF (or restart) afterwards.
-require("vim.lsp.log").set_level(vim.log.levels.OFF)
+vim.lsp.log.set_level(vim.log.levels.OFF)
 
--- LazyVim's eslint extra registers eslint as a format-on-save formatter, and
--- lua/plugins/lsp.lua already runs `LspEslintFixAll` on BufWritePre. Both are
--- blocking round-trips to the same server, so every save paid for ESLint twice
--- on this monorepo. Keep the explicit fixAll; drop LazyVim's duplicate.
-vim.g.lazyvim_eslint_auto_format = false
+-- TypeScript LSP: the native TS 7 server (`tsc --lsp`, installed by Mason).
+-- A project-local tsc older than 7 is skipped, so projects that still pin
+-- TypeScript 5/6 also use this server. To go back, set this to "vtsls".
+vim.g.lazyvim_ts_lsp = "tsc"
+
+-- ESLint fix-all on save comes from LazyVim's eslint extra (it runs before
+-- prettier and follows the <leader>uf toggle). See lua/plugins/lsp.lua.
