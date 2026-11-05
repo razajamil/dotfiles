@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""pxrun CELL_W CELL_H -- command...
+
+Run a command with the pixel size of the terminal set in its window size.
+
+Some multiplexers (herdr) report ws_xpixel = ws_ypixel = 0 for a pane. mpv
+then cannot map terminal mouse cells to video pixels: every mouse event lands
+at (0, 0), so the on-screen controller hides as soon as the pointer stops,
+and --vo=kitty renders at a 320x240 fallback. This wrapper writes
+cols*CELL_W x rows*CELL_H into the tty's window size before the command
+starts, and again after each resize (SIGWINCH).
+"""
+import fcntl
+import os
+import signal
+import struct
+import subprocess
+import sys
+import termios
+
+
+def fix(fd, cw, ch):
+    try:
+        rows, cols, xp, yp = struct.unpack("HHHH", fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\0" * 8))
+        want = (cols * cw, rows * ch)
+        if rows and cols and (xp, yp) != want:
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, *want))
+    except OSError:
+        pass
+
+
+def main():
+    args = sys.argv[1:]
+    if len(args) < 4 or args[2] != "--":
+        sys.exit(__doc__)
+    cw, ch = int(args[0]), int(args[1])
+    cmd = args[3:]
+    try:
+        fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+    except OSError:
+        os.execvp(cmd[0], cmd)
+    fix(fd, cw, ch)
+    signal.signal(signal.SIGWINCH, lambda *_: fix(fd, cw, ch))
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # the child handles Ctrl-C
+    child = subprocess.Popen(cmd, restore_signals=True,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+    while True:
+        try:
+            sys.exit(child.wait())
+        except InterruptedError:
+            continue
+
+
+if __name__ == "__main__":
+    main()

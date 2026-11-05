@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# show — open files in a terminal viewer next to the agent, for the user to see.
+#
+# The agent's Bash tool captures output, so graphics written to stdout never
+# reach the screen. This script opens a NEW pane/window in the user's real
+# terminal and runs the viewer there.
+#
+# Usage: show [--dry-run] [--print-cmd] [clv options] <file|dir>...
+#   --dry-run    print the plan (target + command) and do nothing
+#   --print-cmd  print only the viewer command (for the user to run themselves)
+#
+# Exit codes: 0 opened, 2 no usable target (command printed for the user), 1 error.
+set -euo pipefail
+
+dry_run=0
+print_cmd=0
+clv_opts=()
+files=()
+while (($#)); do
+  case "$1" in
+    --dry-run) dry_run=1 ;;
+    --print-cmd) print_cmd=1 ;;
+    --pages|--zoom|--theme|--compression|--protocol|--password)
+      clv_opts+=("$1" "$2"); shift ;;
+    --*|-r) clv_opts+=("$1") ;;
+    *) files+=("$1") ;;
+  esac
+  shift
+done
+
+((${#files[@]})) || { echo "show: give at least one file or directory" >&2; exit 1; }
+
+command -v clv >/dev/null || { echo "show: clv is not installed (mise use -g github:dobladez/clview)" >&2; exit 1; }
+
+cache="${TMPDIR:-/tmp}"; cache="${cache%/}/claude-show"
+mkdir -p "$cache"
+
+# ---- convert what clv cannot read --------------------------------------------
+video=()
+targets=()
+for f in "${files[@]}"; do
+  [[ -e "$f" ]] || { echo "show: no such file: $f" >&2; exit 1; }
+  abs="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+  ext="${abs##*.}"; ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+  mime=""
+  [[ -f "$abs" ]] && mime="$(file -b --mime-type "$abs" 2>/dev/null || true)"
+  case "$ext" in
+    heic|heif|avif)
+      out="$cache/$(basename "$abs").png"
+      if command -v sips >/dev/null; then
+        sips -s format png -Z 2048 "$abs" --out "$out" >/dev/null
+      elif command -v ffmpeg >/dev/null; then
+        ffmpeg -loglevel error -y -i "$abs" -vf "scale='min(2048,iw)':-2" "$out"
+      else
+        echo "show: cannot convert $abs (no sips or ffmpeg)" >&2; exit 1
+      fi
+      targets+=("$out"); continue ;;
+  esac
+  if [[ "$mime" == video/* || "$ext" =~ ^(mp4|mov|m4v|mkv|webm|avi)$ ]]; then
+    video+=("$abs"); continue
+  fi
+  targets+=("$abs")
+done
+
+q() { printf '%q' "$1"; }
+
+# ---- build the viewer command ------------------------------------------------
+cmd=""
+if ((${#video[@]})); then
+  if command -v mpv >/dev/null; then
+    # Real playback through the kitty graphics protocol.
+    # Align top-left: vo_kitty centers the video but lays out the OSC and maps
+    # the mouse from the top-left corner, so centered video breaks the controls.
+    cmd="mpv --really-quiet --vo=kitty --keep-open=yes --video-align-x=-1 --video-align-y=-1"
+    for v in "${video[@]}"; do cmd+=" $(q "$v")"; done
+  elif command -v ffmpeg >/dev/null; then
+    # No player: a contact sheet of 12 frames, spread over the video.
+    for v in "${video[@]}"; do
+      sheet="$cache/$(basename "$v").sheet.png"
+      dur="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v" 2>/dev/null || echo 0)"
+      fps="$(awk -v d="$dur" 'BEGIN{ if (d+0 <= 0) d = 12; printf "%.6f", 12/d }')"
+      ffmpeg -loglevel error -y -i "$v" -vf "fps=$fps,scale=480:-2,tile=4x3:padding=4:color=black" -frames:v 1 "$sheet"
+      targets+=("$sheet")
+    done
+  else
+    echo "show: cannot show video (install mpv or ffmpeg)" >&2; exit 1
+  fi
+fi
+
+if ((${#targets[@]})); then
+  # --pager keeps a single image on screen until the user presses q.
+  part="clv --pager"
+  for o in ${clv_opts[@]+"${clv_opts[@]}"}; do part+=" $(q "$o")"; done
+  for t in "${targets[@]}"; do part+=" $(q "$t")"; done
+  cmd="${cmd:+$cmd; }$part"
+fi
+
+if ((print_cmd)); then echo "$cmd"; exit 0; fi
+
+# ---- pick where to open it ---------------------------------------------------
+kitty_socket() {
+  local s
+  if [[ -n "${KITTY_LISTEN_ON:-}" ]] && kitten @ --to "$KITTY_LISTEN_ON" ls >/dev/null 2>&1; then
+    echo "$KITTY_LISTEN_ON"; return 0
+  fi
+  # KITTY_LISTEN_ON goes stale inside long-lived multiplexers: try live sockets.
+  for s in /tmp/kitty-* "${TMPDIR:-/tmp}"/kitty-*; do
+    [[ -S "$s" ]] || continue
+    if kitten @ --to "unix:$s" ls >/dev/null 2>&1; then echo "unix:$s"; return 0; fi
+  done
+  return 1
+}
+
+target=""
+if [[ -n "${HERDR_ENV:-}" && -n "${HERDR_PANE_ID:-}" ]] && command -v herdr >/dev/null; then
+  target=herdr
+elif [[ -n "${TMUX:-}" ]] && command -v tmux >/dev/null; then
+  target=tmux
+elif [[ -n "${WEZTERM_PANE:-}" ]] && command -v wezterm >/dev/null; then
+  target=wezterm
+elif command -v kitten >/dev/null && ksock="$(kitty_socket)"; then
+  target=kitty
+fi
+
+# herdr reports a pane's pixel size as 0x0. mpv then puts every mouse event at
+# (0, 0) and renders at 320x240. Read the cell size from the outer terminal
+# (the tty of a herdr client) and let pxrun put the pixel size back.
+herdr_cell_size() {
+  local t
+  for t in $(ps -axo tty=,comm= | awk '$2 ~ /(^|\/)herdr$/ && $1 != "??" {print $1}' | sort -u); do
+    python3 -I - "/dev/$t" <<'PY' 2>/dev/null && return 0
+import fcntl, os, struct, sys, termios
+fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOCTTY)
+r, c, x, y = struct.unpack("HHHH", fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\0" * 8))
+if not (r and c and x and y):
+    sys.exit(1)
+print(x // c, y // r)
+PY
+  done
+  return 1
+}
+
+if [[ "$target" == herdr && "$cmd" == mpv\ * ]] && cell="$(herdr_cell_size)"; then
+  cmd="$(q "$(dirname "$0")/pxrun") ${cell% *} ${cell#* } -- $cmd"
+fi
+
+if ((dry_run)); then
+  echo "target: ${target:-none}"
+  echo "command: $cmd"
+  exit 0
+fi
+
+case "$target" in
+  herdr)
+    json="$(herdr pane split --pane "$HERDR_PANE_ID" --direction right --ratio 0.5)"
+    pane="$(printf '%s' "$json" | sed -n 's/.*"pane_id":"\([^"]*\)".*/\1/p')"
+    [[ -n "$pane" ]] || { echo "show: herdr split failed: $json" >&2; exit 1; }
+    herdr pane run "$pane" "$cmd; exit" >/dev/null
+    herdr pane focus --pane "$HERDR_PANE_ID" --direction right >/dev/null 2>&1 || true
+    echo "opened in herdr pane $pane (right of the agent). Press q to close it."
+    ;;
+  tmux)
+    tmux split-window -h -c "$PWD" "$cmd"
+    echo "opened in a tmux split. Press q to close it."
+    ;;
+  wezterm)
+    wezterm cli split-pane --right --percent 50 -- bash -lc "$cmd" >/dev/null
+    echo "opened in a WezTerm split. Press q to close it."
+    ;;
+  kitty)
+    kitten @ --to "$ksock" launch --type=overlay --cwd=current bash -lc "$cmd" >/dev/null
+    echo "opened in a kitty overlay. Press q to close it."
+    ;;
+  *)
+    echo "show: no terminal to open a viewer in. Run this in a kitty, Ghostty or WezTerm terminal:" >&2
+    echo "$cmd"
+    exit 2
+    ;;
+esac
